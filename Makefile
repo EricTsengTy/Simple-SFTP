@@ -3,8 +3,8 @@ CXX = g++
 INCLUDE_OPENCV = `pkg-config --cflags --libs opencv`
 LINK_PTHREAD = -lpthread
 
-CLIENT = client.c
-SERVER = server.c
+CLIENT = client.cpp
+SERVER = server.cpp
 OPEN_CV = openCV.cpp
 PTHREAD = pthread.c
 CLI = client
@@ -14,10 +14,10 @@ PTH = pthread
 
 all: server client opencv pthread
   
-server: $(SERVER)
-	$(CC) $(SERVER) -o $(SER)  
-client: $(CLIENT)
-	$(CC) $(CLIENT) -o $(CLI)
+server: $(SERVER) msg.hpp
+	$(CXX) $(SERVER) -o $(SER)  
+client: $(CLIENT) msg.hpp
+	$(CXX) $(CLIENT) -o $(CLI)
 opencv: $(OPEN_CV)
 	$(CXX) $(OPEN_CV) -o $(CV) $(INCLUDE_OPENCV)
 pthread: $(PTHREAD)
@@ -27,3 +27,6 @@ pthread: $(PTHREAD)
 
 clean:
 	rm $(CLI) $(SER) $(CV) $(PTH)
+
+clean-folder:
+	rm -r b08902040*
