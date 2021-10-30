@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <sched.h>
 
 #include <iostream>
 #include <vector>
@@ -18,7 +19,7 @@
 
 using namespace std;
 
-#define BUFF_SIZE 1024
+#define BUFF_SIZE 1024UL
 #define MAX_CLIENT 16384
 #define PORT 8787
 #define ERR_EXIT(a){ perror(a); exit(1); }
@@ -27,7 +28,7 @@ using namespace std;
 int process_msg(int fd, Node &node){
     node.buf = "hi";
     // strcpy(node->buf, "hi");
-    hton_msg(node, ".MSG");
+    node.format_buf(".MSG");
     // node->cur = 0;
     node.cur = 0;
     return 1;
@@ -49,8 +50,15 @@ int main(int argc, char *argv[]){
     // Create directory
     string folder = "./b08902040_server_folder";
     if (mkdir(folder.c_str(), 0700) < 0)
-        ERR_EXIT("mkdir failed\n");
+        // ERR_EXIT("mkdir failed\n");
+        ;
     chdir(folder.c_str());
+
+    // Avoid path traversal
+    if (unshare(CLONE_NEWUSER) < 0)
+        ERR_EXIT("unshare failed\n");
+    if (chroot("./") < 0)
+        ERR_EXIT("chroot failed\n");
 
     // Get socket file descriptor
     if((server_sockfd = socket(AF_INET , SOCK_STREAM , 0)) < 0){
@@ -85,7 +93,9 @@ int main(int argc, char *argv[]){
     FD_SET(server_sockfd, &read_fds);
 
     // Handle client msgs
-    vector<Node> clients(MAX_CLIENT);
+    vector<Node> clients(MAX_CLIENT);\
+    for (int i = 0; i != clients.size(); ++i)
+        clients[i].fd = i;
 
     while (true){
         read_fds_sl = read_fds;
@@ -95,30 +105,35 @@ int main(int argc, char *argv[]){
 
         for (int fd = 0; fd <= max_nfds; ++fd){
             if (FD_ISSET(fd, &read_fds_sl)){
-                printf("read_set %d\n", fd);
                 if (fd == server_sockfd){
                     int new_fd = accept(server_sockfd, (struct sockaddr *)&client_addr, (socklen_t*)&client_addr_len);
                     if (new_fd < 0)
                         ERR_EXIT("accept failed\n");
 
                     FD_SET(new_fd, &read_fds);
+                    clients[new_fd] = Node(new_fd);
                     max_nfds = (new_fd > max_nfds) ? new_fd : max_nfds;
                 }
                 else{
-                    int ret = recv_msg(fd, clients[fd]);
-                    if (ret < 0){                           // Lost connection (?)
+                    int ret = clients[fd].recv_all();
+                    if (ret < 0){
                         FD_CLR(fd, &read_fds);
+                        close(fd);
                         clients[fd].init();
                     }
-                    if (ret > 0 && process_msg(fd, clients[fd])){
+                    if (ret > 0)
+                        clients[fd].process();
+                    if (clients[fd].do_write){
                         FD_CLR(fd, &read_fds);
                         FD_SET(fd, &write_fds);
                     }
                 }
             }
             else if (FD_ISSET(fd, &write_fds_sl)){
-                printf("write_set %d\n", fd);
-                if (send_msg(fd, clients[fd])){
+                // printf("write_set %d\n", fd);
+                clients[fd].send_all();
+                if (clients[fd].msg_ok()){
+                    clients[fd].do_write = false;
                     clients[fd].init();
                     FD_CLR(fd, &write_fds);
                     FD_SET(fd, &read_fds);
@@ -129,16 +144,7 @@ int main(int argc, char *argv[]){
 
     // Note
     // 1. How to detemine when to client sockfd
-
-    // Accept the client and get client file descriptor
-    // if((client_sockfd = accept(server_sockfd, (struct sockaddr *)&client_addr, (socklen_t*)&client_addr_len)) < 0){
-    //     ERR_EXIT("accept failed\n");
-    // }
-    
-    // sprintf(buffer, "%s\n", message);
-    // if((write_byte = send(client_sockfd, buffer, strlen(buffer), 0)) < 0){
-    //     ERR_EXIT("write failed\n");
-    // }
+    // 2. string(c_buf): bug?
 
     // close(client_sockfd);
     // close(server_sockfd);
