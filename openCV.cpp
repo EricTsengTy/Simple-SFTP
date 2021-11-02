@@ -6,7 +6,7 @@ using namespace cv;
 
 int main(int argc, char *argv[]){
     Mat server_img,client_img;
-    VideoCapture cap("./tmp.mpg");
+    VideoCapture cap("./video.mpg");
     
     // Get the resolution of the video
     int width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
@@ -14,7 +14,7 @@ int main(int argc, char *argv[]){
     cout << "Video resolution: " << width << ", " << height << endl;
     
     // Allocate container to load frames 
-    server_img = Mat::zeros(540, 960, CV_8UC3);    
+    server_img = Mat::zeros(540, 960, CV_8UC3);
     client_img = Mat::zeros(540, 960, CV_8UC3);
  
     // Ensure the memory is continuous (for efficiency issue.)

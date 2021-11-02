@@ -109,6 +109,9 @@ int main(int argc, char *argv[]){
                     int new_fd = accept(server_sockfd, (struct sockaddr *)&client_addr, (socklen_t*)&client_addr_len);
                     if (new_fd < 0)
                         ERR_EXIT("accept failed\n");
+                    
+                    // Log
+                    cout << new_fd << endl;
 
                     FD_SET(new_fd, &read_fds);
                     clients[new_fd] = Node(new_fd);

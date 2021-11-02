@@ -67,7 +67,7 @@ void send_file(Node &server, string &filename){
 /* Send multiple files */
 void send_files(Node &server, vector<string> &op){
     if (op.size() < 2){
-        cout << "Usage: put [file1] [file2], ..." << '\n';
+        cout << "Command format error." << endl;
         return;
     }
     // Iterate all files
@@ -98,7 +98,7 @@ void recv_file(Node &server, string &filename){ // Create file even when no corr
 /* Receive multiple files */
 void recv_files(Node &server, vector<string> &op){
     if (op.size() < 2){
-        cout << "Usage: get [file1] [file2], ..." << '\n';
+        cout << "Command format error." << endl;
         return;
     }
     // Iterate all files
@@ -113,7 +113,7 @@ void list_remote(Node &server){
     server.buf = "LS  ";
     server.gen_header(".MSG", server.buf.length());
     server.send_all();
-    
+
     // Receive response
     server.init();
     server.recv_all(true);
@@ -180,6 +180,8 @@ int main(int argc , char *argv[]){
             send_files(server, op);
         else if (op[0] == "get")
             recv_files(server, op);
+        else
+            cout << "Command not found." << endl;
     }
 
     close(sockfd);
