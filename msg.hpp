@@ -135,7 +135,7 @@ int Socket::recv_header(){
     __clear_c_buf();
     if (cur < LEN_OFFSET){
         int ret = recv(fd, c_buf, LEN_OFFSET - cur, msg_mode);
-        if (ret < 0 && errno != EAGAIN)
+        if ((ret < 0 && errno != EAGAIN) || ret == 0)
             return -1;
         type += string(c_buf);
         cur = max(cur, cur + ret);
@@ -144,7 +144,7 @@ int Socket::recv_header(){
     // Read length
     else if (cur < MSG_OFFSET){
         int ret = recv(fd, c_buf, MSG_OFFSET - cur, msg_mode);
-        if (ret <= 0)     // Lost connection(?)
+        if ((ret < 0 && errno != EAGAIN) || ret == 0)     // Lost connection(?)
             return -1;
         for (int i = 0; i < ret; ++i){
             int idx = cur + i - LEN_OFFSET;
@@ -190,7 +190,7 @@ int Socket::send_header(){
     if (header.empty())
         gen_header();
     int ret = send(fd, header.c_str() + cur, MSG_OFFSET - cur, msg_mode);
-    if (ret < 0 && errno == EAGAIN)
+    if ((ret < 0 && errno != EAGAIN) || ret == 0)
         return -1;
     cur = max(cur + ret, cur);
     return 0;
@@ -255,9 +255,6 @@ void Socket::process(){
 void Socket::play(){
     video_img = Mat::zeros(height, width, CV_8UC3);
 
-    // Debug log
-    cerr << "Video resolution: " << height << 'x' << width << endl;
-
     // Ensure memory is continuos (for efficiency issue)
     if (!video_img.isContinuous())
         video_img = video_img.clone();
@@ -314,7 +311,7 @@ int Socket::__recv_msg(bool output=false){
     if (cur == len) return 1;
     __clear_c_buf();
     int ret = recv(fd, c_buf, min(len - cur, BUFF_SIZE - 1), msg_mode);
-    if (ret < 0 && errno != EAGAIN)    // Lost connection (?)
+    if ((ret < 0 && errno != EAGAIN) || ret == 0)    // Lost connection (?)
         return -1;
     if (output)
         printf("%s", c_buf);
@@ -331,7 +328,7 @@ int Socket::__recv_file(){
     if (file_fd < 0)
         file_fd = open(filename.c_str(), O_CREAT | O_WRONLY, 0600);
     int ret = recv(fd, c_buf, min(len - cur, BUFF_SIZE), msg_mode);
-    if (ret < 0 && errno != EAGAIN)
+    if ((ret < 0 && errno != EAGAIN) || ret == 0)
         return -1;
     write(file_fd, c_buf, ret);
     cur = max(cur + ret, cur);
@@ -343,7 +340,7 @@ int Socket::__recv_file(){
 int Socket::__recv_mpg(){
     if (cur == len) return 1; // impossible?
     int ret = recv(fd, video_img.data + cur - MSG_OFFSET, len - cur, msg_mode);
-    if (ret < 0 && errno != EAGAIN)
+    if ((ret < 0 && errno != EAGAIN) || ret == 0)
         return -1;
     cur = max(cur, cur + ret);
     return cur == len ? 1 : 0;
@@ -353,7 +350,7 @@ int Socket::__send_msg(){
     if (len == MSG_OFFSET)
         return 1;
     int ret = send(fd, buf.c_str() + cur - MSG_OFFSET, len - cur, msg_mode);
-    if (ret < 0 && errno != EAGAIN)
+    if ((ret < 0 && errno != EAGAIN) || ret == 0)
         return -1;
     cur = max(cur + ret, cur);
     if (cur == len)
@@ -366,7 +363,7 @@ int Socket::__send_file(){
     int read_b = read(file_fd, c_buf, BUFF_SIZE);
     int send_b = send(fd, c_buf, read_b, msg_mode);
     lseek(file_fd, (send_b < 0) ? -read_b : send_b - read_b, SEEK_CUR);
-    if (send_b < 0 && errno != EAGAIN)
+    if ((send_b < 0 && errno != EAGAIN) || send_b == 0)
         return -1;
     cur = max(cur + send_b, cur);
     if (cur == len){
@@ -381,7 +378,7 @@ int Socket::__send_mpg(){
     if (len == MSG_OFFSET)  // I think it's impossible
         return 1;
     int ret = send(fd, video_img.data + cur - MSG_OFFSET, len - cur, msg_mode);
-    if (ret < 0 && errno != EAGAIN)
+    if ((ret < 0 && errno != EAGAIN) || ret == 0)
         return -1;
     cur = max(cur + ret, cur);
     if (cur == len)

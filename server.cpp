@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <sched.h>
+#include <signal.h>
 
 #include <iostream>
 #include <vector>
@@ -23,6 +24,12 @@ using namespace std;
 #define MAX_CLIENT 16384
 #define PORT 8787
 #define ERR_EXIT(a){ perror(a); exit(1); }
+
+bool is_sigpipe = false;
+
+void pipe_handler(int signum){
+    is_sigpipe = true;
+}
 
 int main(int argc, char *argv[]){
     int server_sockfd, client_sockfd, write_byte;
@@ -87,6 +94,12 @@ int main(int argc, char *argv[]){
     for (int i = 0; i != clients.size(); ++i)
         clients[i].fd = i;
 
+    // Setup signal handler
+    struct sigaction act;
+    memset(&act, 0, sizeof(act));
+    act.sa_handler = pipe_handler;
+    sigaction(SIGPIPE, &act, nullptr);
+
     while (true){
         read_fds_sl = read_fds;
         write_fds_sl = write_fds;
@@ -94,6 +107,7 @@ int main(int argc, char *argv[]){
             ERR_EXIT("select failed\n");
 
         for (int fd = 0; fd <= max_nfds; ++fd){
+            is_sigpipe = false;
             if (FD_ISSET(fd, &read_fds_sl)){
                 if (fd == server_sockfd){
                     int new_fd = accept(server_sockfd, (struct sockaddr *)&client_addr, (socklen_t*)&client_addr_len);
@@ -109,10 +123,10 @@ int main(int argc, char *argv[]){
                 }
                 else{
                     int ret = clients[fd].recv_all();
-                    if (ret < 0){
+                    if (ret < 0 || is_sigpipe){
                         FD_CLR(fd, &read_fds);
                         close(fd);
-                        clients[fd].init();
+                        clients[fd] = Socket(fd);
                     }
                     if (ret > 0)
                         clients[fd].process();
@@ -123,9 +137,13 @@ int main(int argc, char *argv[]){
                 }
             }
             else if (FD_ISSET(fd, &write_fds_sl)){
-                // printf("write_set %d\n", fd);
-                clients[fd].send_all();
-                if (clients[fd].msg_ok()){
+                int ret = clients[fd].send_all();
+                if (ret < 0 || is_sigpipe){
+                    FD_CLR(fd, &write_fds);
+                    close(fd);
+                    clients[fd] = Socket(fd);
+                }
+                else if (clients[fd].msg_ok()){
                     clients[fd].do_write = false;
                     clients[fd].init();
                     FD_CLR(fd, &write_fds);
