@@ -17,3 +17,8 @@ PUT [filename]
 [CONTENT]:
 GET [filename]
 ```
+
+### play mpg
+```
+RES [width]x[height]
+```

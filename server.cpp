@@ -24,16 +24,6 @@ using namespace std;
 #define PORT 8787
 #define ERR_EXIT(a){ perror(a); exit(1); }
 
-/* Return 1 if write is needed */
-int process_msg(int fd, Node &node){
-    node.buf = "hi";
-    // strcpy(node->buf, "hi");
-    node.format_buf(".MSG");
-    // node->cur = 0;
-    node.cur = 0;
-    return 1;
-}
-
 int main(int argc, char *argv[]){
     int server_sockfd, client_sockfd, write_byte;
     int server_port;
@@ -93,7 +83,7 @@ int main(int argc, char *argv[]){
     FD_SET(server_sockfd, &read_fds);
 
     // Handle client msgs
-    vector<Node> clients(MAX_CLIENT);\
+    vector<Socket> clients(MAX_CLIENT);
     for (int i = 0; i != clients.size(); ++i)
         clients[i].fd = i;
 
@@ -114,7 +104,7 @@ int main(int argc, char *argv[]){
                     cout << new_fd << endl;
 
                     FD_SET(new_fd, &read_fds);
-                    clients[new_fd] = Node(new_fd);
+                    clients[new_fd] = Socket(new_fd);
                     max_nfds = (new_fd > max_nfds) ? new_fd : max_nfds;
                 }
                 else{

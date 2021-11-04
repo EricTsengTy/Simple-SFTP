@@ -15,9 +15,9 @@ PTH = pthread
 all: server client opencv pthread
   
 server: $(SERVER) msg.hpp
-	$(CXX) $(SERVER) -o $(SER) -std=c++17
+	$(CXX) $(SERVER) -o $(SER) -std=c++17 $(INCLUDE_OPENCV)
 client: $(CLIENT) msg.hpp
-	$(CXX) $(CLIENT) -o $(CLI) -std=c++17
+	$(CXX) $(CLIENT) -o $(CLI) -std=c++17 $(INCLUDE_OPENCV)
 opencv: $(OPEN_CV)
 	$(CXX) $(OPEN_CV) -o $(CV) $(INCLUDE_OPENCV)
 pthread: $(PTHREAD)

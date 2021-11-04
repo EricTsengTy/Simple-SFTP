@@ -42,7 +42,7 @@ vector<string> parse_args(string cmd){
 }
 
 /* Send single file */
-void send_file(Node &server, string &filename){
+void send_file(Socket &server, string &filename){
     // Check file (may exist race condition)
     if (access(filename.c_str(), O_RDONLY) < 0){
         cout << "The " << filename << " doesn't exist." << endl;
@@ -65,7 +65,7 @@ void send_file(Node &server, string &filename){
 }
 
 /* Send multiple files */
-void send_files(Node &server, vector<string> &op){
+void send_files(Socket &server, vector<string> &op){
     if (op.size() < 2){
         cout << "Command format error." << endl;
         return;
@@ -76,7 +76,7 @@ void send_files(Node &server, vector<string> &op){
 }
 
 /* Receive single file */
-void recv_file(Node &server, string &filename){ // Create file even when no corresponding file
+void recv_file(Socket &server, string &filename){ // Create file even when no corresponding file
     // Send hello message
     server.init();
     server.buf = "GET " + filename;
@@ -96,7 +96,7 @@ void recv_file(Node &server, string &filename){ // Create file even when no corr
 }
 
 /* Receive multiple files */
-void recv_files(Node &server, vector<string> &op){
+void recv_files(Socket &server, vector<string> &op){
     if (op.size() < 2){
         cout << "Command format error." << endl;
         return;
@@ -107,7 +107,7 @@ void recv_files(Node &server, vector<string> &op){
 }
 
 /* List remote files */
-void list_remote(Node &server){
+void list_remote(Socket &server){
     // Send hello message
     server.init();
     server.buf = "LS  ";
@@ -117,6 +117,35 @@ void list_remote(Node &server){
     // Receive response
     server.init();
     server.recv_all(true);
+}
+
+/* Play remote mpg */
+void play_mpg(Socket &server, vector<string> &op){
+    // Command error
+    auto ext = op[1].substr(max(0, int(op[1].size()) - 4));
+    if (ext != ".mpg" && ext != ".MPG")
+        return cout << "The " << op[1] << " is not a mpg file." << endl, void();
+
+    // Send hello message - ask resolution
+    server.init();
+    server.buf = "ASK " + op[1];
+    server.gen_header(".MSG", server.buf.length());
+    server.send_all();
+
+    // Get resolution
+    server.init();
+    server.recv_all();
+    if (server.type == ".NIL") // not exist
+        return cout << "The " << op[1] << " doesn't exist." << endl, void();
+
+    int pos_x = server.buf.find('x');
+    server.width = stoi(server.buf.substr(4, pos_x));
+    server.height = stoi(server.buf.substr(pos_x + 1));
+    cerr << server.width << 'x' << server.height << endl; // Debug
+
+    // Play mpg
+    server.init();
+    server.play();
 }
 
 int main(int argc , char *argv[]){
@@ -166,20 +195,21 @@ int main(int argc , char *argv[]){
     }
 
     // Main loop
-    Node server(sockfd, true);
+    Socket server(sockfd, true);
     while (true){
         cout << "$ ";
         getline(cin, buf);
         auto op = parse_args(buf);
-        if (op.empty()){
-
-        }
+        if (op.empty());
+            // Do nothing
         else if (op[0] == "ls")
             list_remote(server);
         else if (op[0] == "put")
             send_files(server, op);
         else if (op[0] == "get")
             recv_files(server, op);
+        else if (op[0] == "play")
+            play_mpg(server, op);
         else
             cout << "Command not found." << endl;
     }
