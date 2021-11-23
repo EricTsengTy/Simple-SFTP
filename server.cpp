@@ -115,7 +115,7 @@ int main(int argc, char *argv[]){
                         ERR_EXIT("accept failed\n");
                     
                     // Log
-                    cout << new_fd << endl;
+                    cout << "A new connection from sockfd: " << new_fd << endl;
 
                     FD_SET(new_fd, &read_fds);
                     clients[new_fd] = Socket(new_fd);
@@ -157,7 +157,5 @@ int main(int argc, char *argv[]){
     // 1. How to detemine when to client sockfd
     // 2. string(c_buf): bug?
 
-    // close(client_sockfd);
-    // close(server_sockfd);
     return 0;
 }

@@ -107,7 +107,13 @@ void recv_files(Socket &server, vector<string> &op){
 }
 
 /* List remote files */
-void list_remote(Socket &server){
+void list_remote(Socket &server, vector<string> &op){
+    // Format error
+    if (op.size() >= 2){
+        cout << "Command format error." << endl;
+        return;
+    }
+
     // Send hello message
     server.init();
     server.buf = "LS  ";
@@ -199,11 +205,13 @@ int main(int argc , char *argv[]){
     while (true){
         cout << "$ ";
         getline(cin, buf);
+        if (cin.eof())
+            break;
         auto op = parse_args(buf);
         if (op.empty());
             // Do nothing
         else if (op[0] == "ls")
-            list_remote(server);
+            list_remote(server, op);
         else if (op[0] == "put")
             send_files(server, op);
         else if (op[0] == "get")

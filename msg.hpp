@@ -20,7 +20,7 @@ using namespace cv;
 
 struct Socket{
     Socket(int fd = 0, bool blocking = false):fd(fd),blocking(blocking){
-        msg_mode = blocking ? 0 : MSG_DONTWAIT;
+        msg_mode = blocking ? MSG_WAITALL : MSG_DONTWAIT;
     }
     int fd;
     bool do_write = false; // true if write is needed after msg
@@ -323,8 +323,11 @@ int Socket::__recv_msg(bool output=false){
 
 int Socket::__recv_file(){
     __clear_c_buf();
-    if (len == MSG_OFFSET)
-        return creat(filename.c_str(), 0600), 1;
+    if (len == MSG_OFFSET){
+        int fd = creat(filename.c_str(), 0600);
+        if (fd > 0) close(fd);
+        return 1;
+    }
     if (file_fd < 0)
         file_fd = open(filename.c_str(), O_CREAT | O_WRONLY, 0600);
     int ret = recv(fd, c_buf, min(len - cur, BUFF_SIZE), msg_mode);
@@ -359,6 +362,12 @@ int Socket::__send_msg(){
 }
 
 int Socket::__send_file(){
+    if (len == MSG_OFFSET){
+        do_write = false;
+        close(file_fd);
+        file_fd = -1;
+        return 1;
+    }
     __clear_c_buf();
     int read_b = read(file_fd, c_buf, BUFF_SIZE);
     int send_b = send(fd, c_buf, read_b, msg_mode);
